@@ -1,0 +1,1 @@
+"""FinPulse ingestion package."""
