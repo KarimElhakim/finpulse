@@ -28,6 +28,15 @@ BRONZE_CONTAINER: Final[str] = "finpulse-bronze"
 BASE_URL: Final[str] = "https://www.alphavantage.co/query"
 FUNCTION: Final[str] = "TIME_SERIES_DAILY"
 SLEEP_SECONDS_BETWEEN_REQUESTS: Final[float] = 12.0
+AV_COLUMNS: Final[tuple[str, ...]] = (
+    "ticker",
+    "date",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -152,40 +161,35 @@ def fetch(config: AlphaVantageConfig) -> pd.DataFrame:
             )
             logger.error(msg)
             raise RuntimeError(msg)
-        else:
-            for day, values in series.items():
-                if not isinstance(values, dict):
-                    msg = (
-                        f"Alpha Vantage malformed record source={SOURCE_NAME} "
-                        f"ticker={symbol} endpoint={BASE_URL} date={day}"
-                    )
-                    logger.error(msg)
-                    raise RuntimeError(msg)
 
-                rows.append(
-                    {
-                        "ticker": symbol,
-                        "date": day,
-                        "open": values.get("1. open"),
-                        "high": values.get("2. high"),
-                        "low": values.get("3. low"),
-                        "close": values.get("4. close"),
-                        "volume": values.get("5. volume"),
-                    }
+        for day, values in series.items():
+            if not isinstance(values, dict):
+                msg = (
+                    f"Alpha Vantage malformed record source={SOURCE_NAME} "
+                    f"ticker={symbol} endpoint={BASE_URL} date={day}"
                 )
+                logger.error(msg)
+                raise RuntimeError(msg)
+
+            rows.append(
+                {
+                    "ticker": symbol,
+                    "date": day,
+                    "open": values.get("1. open"),
+                    "high": values.get("2. high"),
+                    "low": values.get("3. low"),
+                    "close": values.get("4. close"),
+                    "volume": values.get("5. volume"),
+                }
+            )
 
         if i < len(config.tickers) - 1 and config.sleep_seconds > 0:
             time.sleep(config.sleep_seconds)
 
     if not rows:
-        return pd.DataFrame(
-            columns=["ticker", "date", "open", "high", "low", "close", "volume"]
-        )
+        return pd.DataFrame(columns=list(AV_COLUMNS))
 
-    return pd.DataFrame(
-        rows,
-        columns=["ticker", "date", "open", "high", "low", "close", "volume"],
-    )
+    return pd.DataFrame(rows, columns=list(AV_COLUMNS))
 
 
 def write_to_blob(df: pd.DataFrame, run_date: date, config: AlphaVantageConfig) -> str:
@@ -198,7 +202,9 @@ def write_to_blob(df: pd.DataFrame, run_date: date, config: AlphaVantageConfig) 
     blob_path = f"{SOURCE_NAME}/{folder}/{SOURCE_NAME}_raw.parquet"
 
     try:
-        service = BlobServiceClient.from_connection_string(config.connection_string)
+        service = BlobServiceClient.from_connection_string(
+            config.connection_string
+        )
         container = service.get_container_client(BRONZE_CONTAINER)
         blob = container.get_blob_client(blob_path)
 

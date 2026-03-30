@@ -11,7 +11,7 @@ import io
 import logging
 import os
 from datetime import date
-from typing import Sequence
+from typing import Final, Sequence
 
 import pandas as pd
 import pyarrow as pa
@@ -20,11 +20,40 @@ import yfinance as yf
 from azure.storage.blob import BlobServiceClient
 from dotenv import load_dotenv
 
-SOURCE_NAME = "yfinance"
+SOURCE_NAME: Final[str] = "yfinance"
+OHLCV_COLUMNS: Final[tuple[str, ...]] = (
+    "ticker",
+    "date",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+)
 
 logger = logging.getLogger(__name__)
 
 load_dotenv()
+
+
+def _empty_ohlcv() -> pd.DataFrame:
+    return pd.DataFrame(columns=list(OHLCV_COLUMNS))
+
+
+def _ohlcv_frame(ticker: str, df_with_date_index: pd.DataFrame) -> pd.DataFrame:
+    """Build OHLCV rows for one ticker from yfinance daily columns."""
+    df_t = df_with_date_index.reset_index()
+    return pd.DataFrame(
+        {
+            "ticker": ticker,
+            "date": pd.to_datetime(df_t["Date"]),
+            "open": df_t.get("Open"),
+            "high": df_t.get("High"),
+            "low": df_t.get("Low"),
+            "close": df_t.get("Close"),
+            "volume": df_t.get("Volume"),
+        }
+    )
 
 
 def fetch(tickers: Sequence[str], days: int) -> pd.DataFrame:
@@ -36,9 +65,7 @@ def fetch(tickers: Sequence[str], days: int) -> pd.DataFrame:
     """
     ticker_list = [t.strip() for t in tickers if t and t.strip()]
     if not ticker_list:
-        return pd.DataFrame(
-            columns=["ticker", "date", "open", "high", "low", "close", "volume"]
-        )
+        return _empty_ohlcv()
 
     try:
         raw = yf.download(
@@ -57,9 +84,7 @@ def fetch(tickers: Sequence[str], days: int) -> pd.DataFrame:
 
     if raw is None or raw.empty:
         logger.warning("yfinance returned no data for tickers=%s", ticker_list)
-        return pd.DataFrame(
-            columns=["ticker", "date", "open", "high", "low", "close", "volume"]
-        )
+        return _empty_ohlcv()
 
     frames: list[pd.DataFrame] = []
 
@@ -74,43 +99,15 @@ def fetch(tickers: Sequence[str], days: int) -> pd.DataFrame:
                 logger.warning("No data returned for ticker=%s", ticker)
                 continue
 
-            df_t = df_t.reset_index()
-            frames.append(
-                pd.DataFrame(
-                    {
-                        "ticker": ticker,
-                        "date": pd.to_datetime(df_t["Date"]),
-                        "open": df_t.get("Open"),
-                        "high": df_t.get("High"),
-                        "low": df_t.get("Low"),
-                        "close": df_t.get("Close"),
-                        "volume": df_t.get("Volume"),
-                    }
-                )
-            )
+            frames.append(_ohlcv_frame(ticker, df_t))
     else:
-        df_t = raw.copy().reset_index()
-        frames.append(
-            pd.DataFrame(
-                {
-                    "ticker": ticker_list[0],
-                    "date": pd.to_datetime(df_t["Date"]),
-                    "open": df_t.get("Open"),
-                    "high": df_t.get("High"),
-                    "low": df_t.get("Low"),
-                    "close": df_t.get("Close"),
-                    "volume": df_t.get("Volume"),
-                }
-            )
-        )
+        frames.append(_ohlcv_frame(ticker_list[0], raw.copy()))
 
     if not frames:
-        return pd.DataFrame(
-            columns=["ticker", "date", "open", "high", "low", "close", "volume"]
-        )
+        return _empty_ohlcv()
 
     out = pd.concat(frames, ignore_index=True)
-    return out[["ticker", "date", "open", "high", "low", "close", "volume"]]
+    return out[list(OHLCV_COLUMNS)]
 
 
 def _default_days() -> int:

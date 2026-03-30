@@ -24,6 +24,13 @@ from dotenv import load_dotenv
 SOURCE_NAME: Final[str] = "rss"
 BRONZE_CONTAINER: Final[str] = "finpulse-bronze"
 ENV_FEED_URLS: Final[str] = "RSS_FEED_URLS"
+RSS_COLUMNS: Final[tuple[str, ...]] = (
+    "source",
+    "title",
+    "summary",
+    "published",
+    "link",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +60,15 @@ def _load_config() -> RssConfig:
         )
 
     return RssConfig(feed_urls=feed_urls, connection_string=connection_string)
+
+
+def _feed_label(parsed: object, fallback_url: str) -> str:
+    feed = getattr(parsed, "feed", None)
+    return (
+        getattr(feed, "title", None)
+        or getattr(feed, "link", None)
+        or fallback_url
+    )
 
 
 def _fetch_from_urls(feed_urls: Sequence[str]) -> pd.DataFrame:
@@ -92,11 +108,7 @@ def _fetch_from_urls(feed_urls: Sequence[str]) -> pd.DataFrame:
             )
             continue
 
-        feed_source = (
-            getattr(getattr(parsed, "feed", None), "title", None)
-            or getattr(getattr(parsed, "feed", None), "link", None)
-            or feed_url
-        )
+        feed_source = _feed_label(parsed, feed_url)
 
         for entry in entries:
             title = getattr(entry, "title", None)
@@ -115,14 +127,9 @@ def _fetch_from_urls(feed_urls: Sequence[str]) -> pd.DataFrame:
             )
 
     if not rows:
-        return pd.DataFrame(
-            columns=["source", "title", "summary", "published", "link"]
-        )
+        return pd.DataFrame(columns=list(RSS_COLUMNS))
 
-    return pd.DataFrame(
-        rows,
-        columns=["source", "title", "summary", "published", "link"],
-    )
+    return pd.DataFrame(rows, columns=list(RSS_COLUMNS))
 
 
 def fetch() -> pd.DataFrame:
@@ -184,14 +191,9 @@ if __name__ == "__main__":
     print(f"Rows fetched (total): {len(all_rows)}")
 
     df_all = (
-        pd.DataFrame(
-            all_rows,
-            columns=["source", "title", "summary", "published", "link"],
-        )
+        pd.DataFrame(all_rows, columns=list(RSS_COLUMNS))
         if all_rows
-        else pd.DataFrame(
-            columns=["source", "title", "summary", "published", "link"]
-        )
+        else pd.DataFrame(columns=list(RSS_COLUMNS))
     )
 
     written_path = write_to_blob(df_all, run_date=date.today(), config=config)

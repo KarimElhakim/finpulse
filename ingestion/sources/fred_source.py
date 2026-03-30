@@ -27,6 +27,7 @@ BRONZE_CONTAINER: Final[str] = "finpulse-bronze"
 FRED_OBSERVATIONS_URL: Final[str] = (
     "https://api.stlouisfed.org/fred/series/observations"
 )
+FRED_COLUMNS: Final[tuple[str, ...]] = ("series_id", "date", "value")
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ def fetch(config: FredConfig) -> pd.DataFrame:
     """
     series_list = [s.strip() for s in config.series_ids if s and s.strip()]
     if not series_list:
-        return pd.DataFrame(columns=["series_id", "date", "value"])
+        return pd.DataFrame(columns=list(FRED_COLUMNS))
 
     end_date = date.today()
     start_date = end_date.fromordinal(
@@ -147,9 +148,9 @@ def fetch(config: FredConfig) -> pd.DataFrame:
             )
 
     if not rows:
-        return pd.DataFrame(columns=["series_id", "date", "value"])
+        return pd.DataFrame(columns=list(FRED_COLUMNS))
 
-    return pd.DataFrame(rows, columns=["series_id", "date", "value"])
+    return pd.DataFrame(rows, columns=list(FRED_COLUMNS))
 
 
 def write_to_blob(df: pd.DataFrame, run_date: date, config: FredConfig) -> str:
@@ -162,7 +163,9 @@ def write_to_blob(df: pd.DataFrame, run_date: date, config: FredConfig) -> str:
     blob_path = f"{SOURCE_NAME}/{folder}/{SOURCE_NAME}_raw.parquet"
 
     try:
-        service = BlobServiceClient.from_connection_string(config.connection_string)
+        service = BlobServiceClient.from_connection_string(
+            config.connection_string
+        )
         container = service.get_container_client(BRONZE_CONTAINER)
         blob = container.get_blob_client(blob_path)
 

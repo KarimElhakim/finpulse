@@ -28,6 +28,14 @@ BRONZE_CONTAINER: Final[str] = "finpulse-bronze"
 BASE_URL: Final[str] = "https://data.sec.gov/submissions"
 USER_AGENT: Final[str] = "FinPulse-Pipeline contact@finpulse.dev"
 SLEEP_SECONDS_BETWEEN_REQUESTS: Final[float] = 0.5
+EDGAR_COLUMNS: Final[tuple[str, ...]] = (
+    "ticker",
+    "cik",
+    "form_type",
+    "filed_date",
+    "accession_number",
+    "primary_document",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -207,28 +215,9 @@ def fetch(config: EdgarConfig) -> pd.DataFrame:
             time.sleep(config.sleep_seconds)
 
     if not rows:
-        return pd.DataFrame(
-            columns=[
-                "ticker",
-                "cik",
-                "form_type",
-                "filed_date",
-                "accession_number",
-                "primary_document",
-            ]
-        )
+        return pd.DataFrame(columns=list(EDGAR_COLUMNS))
 
-    return pd.DataFrame(
-        rows,
-        columns=[
-            "ticker",
-            "cik",
-            "form_type",
-            "filed_date",
-            "accession_number",
-            "primary_document",
-        ],
-    )
+    return pd.DataFrame(rows, columns=list(EDGAR_COLUMNS))
 
 
 def write_to_blob(df: pd.DataFrame, run_date: date, config: EdgarConfig) -> str:
@@ -241,7 +230,9 @@ def write_to_blob(df: pd.DataFrame, run_date: date, config: EdgarConfig) -> str:
     blob_path = f"{SOURCE_NAME}/{folder}/{SOURCE_NAME}_raw.parquet"
 
     try:
-        service = BlobServiceClient.from_connection_string(config.connection_string)
+        service = BlobServiceClient.from_connection_string(
+            config.connection_string
+        )
         container = service.get_container_client(BRONZE_CONTAINER)
         blob = container.get_blob_client(blob_path)
 

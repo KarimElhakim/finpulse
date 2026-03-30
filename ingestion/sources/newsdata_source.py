@@ -24,6 +24,14 @@ from dotenv import load_dotenv
 SOURCE_NAME: Final[str] = "newsdata"
 BRONZE_CONTAINER: Final[str] = "finpulse-bronze"
 BASE_URL: Final[str] = "https://newsdata.io/api/1/news"
+NEWS_COLUMNS: Final[tuple[str, ...]] = (
+    "article_id",
+    "title",
+    "description",
+    "source_id",
+    "pubdate",
+    "url",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -116,21 +124,9 @@ def fetch(config: NewsDataConfig) -> pd.DataFrame:
         )
 
     if not rows:
-        return pd.DataFrame(
-            columns=[
-                "article_id",
-                "title",
-                "description",
-                "source_id",
-                "pubdate",
-                "url",
-            ]
-        )
+        return pd.DataFrame(columns=list(NEWS_COLUMNS))
 
-    return pd.DataFrame(
-        rows,
-        columns=["article_id", "title", "description", "source_id", "pubdate", "url"],
-    )
+    return pd.DataFrame(rows, columns=list(NEWS_COLUMNS))
 
 
 def write_to_blob(df: pd.DataFrame, run_date: date, config: NewsDataConfig) -> str:
@@ -143,7 +139,9 @@ def write_to_blob(df: pd.DataFrame, run_date: date, config: NewsDataConfig) -> s
     blob_path = f"{SOURCE_NAME}/{folder}/{SOURCE_NAME}_raw.parquet"
 
     try:
-        service = BlobServiceClient.from_connection_string(config.connection_string)
+        service = BlobServiceClient.from_connection_string(
+            config.connection_string
+        )
         container = service.get_container_client(BRONZE_CONTAINER)
         blob = container.get_blob_client(blob_path)
 
