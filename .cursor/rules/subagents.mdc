@@ -1,0 +1,31 @@
+---
+description: Subagent patterns to use for complex or multi-file tasks
+alwaysApply: true
+---
+
+# Subagent workflow patterns
+
+## When to spawn a subagent
+Spawn a subagent (using /spawn or background agent) when:
+- A task touches more than 3 files simultaneously
+- You need to verify code against standards without bias from writing it
+- You need to run tests while continuing to write code
+- You need to research a library or API before implementing
+
+## Standard subagent patterns for FinPulse
+
+### Pattern 1: Build + Verify
+Step 1 — Implementer subagent: writes the code focused purely on making it work
+Step 2 — Reviewer subagent: reviews ONLY against core.mdc and the relevant domain rule. Has not seen the implementation context so reviews with fresh eyes.
+Never ask the same agent that wrote code to also verify it meets standards.
+
+### Pattern 2: Parallel ingestion
+When adding multiple ingestion sources at once, spawn one subagent per source.
+Each subagent works independently. Main agent integrates outputs.
+
+### Pattern 3: Background testing
+When implementing a new feature, spawn a background subagent to run existing tests continuously.
+Main agent keeps writing. Background agent reports failures in real time.
+
+## After any subagent completes
+Update CONTEXT.md with what was built before closing the session.

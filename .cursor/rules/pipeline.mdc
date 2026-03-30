@@ -1,0 +1,29 @@
+---
+description: Rules for Databricks notebooks in pipeline/bronze, silver, gold
+globs: pipeline/**/*.py
+---
+
+# Pipeline (medallion) standards
+
+## Bronze
+- Read raw Parquet from Azure Blob as-is
+- Apply schema enforcement only (cast types, rename columns to snake_case)
+- Write to Delta Lake table: bronze_{source_name}
+- No business logic
+
+## Silver
+- Read from Bronze Delta tables
+- Apply cleaning: drop nulls on key fields, deduplicate, normalise dates to UTC
+- Write to Delta Lake table: silver_{source_name}
+- Document every transformation with a comment explaining why
+
+## Gold
+- Join Silver tables into business-ready aggregates
+- Apply FinBERT sentiment scoring on news headlines here
+- Write final output as Delta table: gold_financial_signals
+- This is what the .NET API reads from
+
+## Every notebook must have
+- A markdown cell at top explaining what the notebook does
+- A parameters cell for configurable inputs
+- Cell-level comments for non-obvious logic

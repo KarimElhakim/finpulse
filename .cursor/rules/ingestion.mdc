@@ -1,0 +1,24 @@
+---
+description: Rules for writing ingestion source files in finpulse/ingestion/sources/
+globs: ingestion/sources/*.py
+---
+
+# Ingestion source standards
+
+## Structure of every source file
+Each source file must follow this exact pattern:
+
+1. Module docstring explaining what data this source provides
+2. Config loaded from environment via dotenv
+3. A single main fetch function with typed return (returns pandas DataFrame)
+4. A write_to_blob() function that writes Parquet to Azure Blob Storage
+5. A if __name__ == "__main__" block that runs fetch + write for local testing
+
+## Azure Blob naming convention
+Container: finpulse-bronze
+Path pattern: {source_name}/{YYYY-MM-DD}/{source_name}_raw.parquet
+
+## Never do this in ingestion files
+- No transformation or cleaning logic (that belongs in Silver notebooks)
+- No ML or sentiment scoring (that belongs in Gold)
+- No hardcoded tickers or date ranges — always parameterise

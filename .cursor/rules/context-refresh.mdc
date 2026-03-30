@@ -1,0 +1,21 @@
+---
+description: Session startup protocol to restore full project context
+alwaysApply: true
+---
+
+# Session startup
+
+Every new Cursor session must start with:
+1. Read CONTEXT.md fully
+2. State the current sprint goal (Week 1, 2, 3, or 4)
+3. State the last completed step
+4. State the next step to execute
+5. Only then proceed
+
+If CONTEXT.md does not exist or is empty, stop and ask the developer to provide project context before doing anything.
+
+## Session end
+Before closing any significant work session, update CONTEXT.md:
+- Add completed steps to "Files created so far"
+- Update "Current sprint" section with next step
+- Note any blockers or decisions made

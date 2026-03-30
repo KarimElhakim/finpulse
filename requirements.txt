@@ -1,0 +1,7 @@
+yfinance
+requests
+feedparser
+python-dotenv
+pandas
+azure-storage-blob
+pyarrow
